@@ -34,25 +34,21 @@ pipeline{
                }
             }
         }
-         stage('Integration Test maven'){
-         when { expression {  params.action == 'create' } }
-            steps{
-               script{
-                   
-                   mvnIntegrationTest()
-               }
+         stage("build & SonarQube analysis") {
+            agent any
+            steps {
+              withSonarQubeEnv('sonarqube') {
+                sh 'mvn clean package sonar:sonar'
+              }
             }
-        }
-       stage('Static code analysis: Sonarqube'){
-          when { expression {  params.action == 'create' } }
-             steps{
-                script{
-                   
-                    def SonarQubecredentialsId = 'sonarqube-api'
-                    statiCodeAnalysis(SonarQubecredentialsId)
-                }
-             }
-        }
+          }
+          stage("Quality Gate") {
+            steps {
+              timeout(time: 1, unit: 'HOURS') {
+                waitForQualityGate abortPipeline: true
+              }
+            }
+          }
          stage('Quality Gate Status Check : Sonarqube'){
           when { expression {  params.action == 'create' } }
              steps{
